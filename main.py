@@ -96,11 +96,13 @@ class Bricks(pg.sprite.Sprite):
     def __init__(self, x, y, color, ball):
         super(Bricks, self).__init__()
         self.ball = ball
+        self.color = color
+        self.destroyed = False
         w = 0.25 # width of the brick
         h = 0.1 # height of the brick
         self.body = world.CreateStaticBody(position=(x, y), shapes=b2PolygonShape(box=(w, h)))
-        self.image = pg.Surface((2*w*b2w, 2*h*b2w))
-        self.image.fill(color)
+        self.image = pg.Surface(((2*w*b2w) + 10 , (2*h*b2w) + 15))
+        self.image.fill(self.color)
         self.rect = self.image.get_rect()
         self.rect.center = self.body.position.x * b2w, 820 - self.body.position.y * b2w
 
@@ -108,8 +110,15 @@ class Bricks(pg.sprite.Sprite):
         screen.blit(self.image, self.rect.center)
 
     def update(self):
-        collide = pg.sprite.spritecollide(self, self.ball, True)
-        #print(collide)
+        if self.color != (0, 0, 0):
+            collide = pg.sprite.spritecollide(self, self.ball, False)
+            if collide:
+                print("collide")
+                self.color = (0, 0, 0)
+                self.image.fill(self.color)
+        elif self.color == (0, 0, 0) and not self.destroyed:
+            world.DestroyBody(self.body)
+            self.destroyed = True
 
 class Updater():
     def update(self):
