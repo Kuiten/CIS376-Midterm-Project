@@ -21,8 +21,9 @@ timeStep = 1.0 / 60
 vel_iters, pos_iters = 6, 2
 
 #Game object for platform moved by player
-class Platform():
+class Platform(pg.sprite.Sprite):
     def __init__(self):
+        super(Platform, self).__init__()
         w = 0.5 # width of the platform
         h = 0.1 # height of the platform
         self.body = world.CreateKinematicBody(position=(4, 0.5))
@@ -30,7 +31,7 @@ class Platform():
         fixDef = b2FixtureDef(shape=shape, friction=1.0, restitution=1, density=.5)
         box = self.body.CreateFixture(fixDef)
         # 100 x 20
-        self.image = pg.Surface((2*w*b2w, 2*h*b2w))
+        self.image = pg.Surface((2*w*b2w, (2*h*b2w) + 5))
         self.image.fill((255, 0, 0))
         self.rect = self.image.get_rect()
         self.rect.center = self.body.position.x * b2w, 820 - self.body.position.y * b2w
@@ -48,14 +49,15 @@ class Platform():
             if event.type == pg.KEYDOWN:
                 if event.key == pg.K_a:
                     #self.body.ApplyLinearImpulse( b2Vec2(-0.5, 0), self.body.position, True)
-                    self.body.linearVelocity = b2Vec2(-8, 0)
+                    self.body.linearVelocity = b2Vec2(-8.5, 0)
                 if event.key == pg.K_d:
-                    self.body.linearVelocity = b2Vec2(8, 0)
+                    self.body.linearVelocity = b2Vec2(8.5, 0)
 
 #Game object for ball
 class Ball(pg.sprite.Sprite):
-    def __init__(self):
+    def __init__(self, platforms):
         super(Ball, self).__init__()
+        self.platforms = platforms
         self.body = world.CreateDynamicBody(position=(4, 1.5))
         shape=b2CircleShape(radius=.2)
         fixDef = b2FixtureDef(shape=shape, friction=0.3, restitution=1, density=.3)
@@ -77,7 +79,10 @@ class Ball(pg.sprite.Sprite):
         #If the ball falls off the map end the game
         if(800 - self.body.position[1] * b2w > 820):
             Engine.running = False
-                
+        collide = pg.sprite.spritecollide(self, self.platforms, False)
+        if collide:
+            self.body.ApplyLinearImpulse( b2Vec2(0, 0.2), self.body.position, True)
+
 #Game object for walls
 class Walls():
     def __init__(self, x, y, w, h):
@@ -117,7 +122,6 @@ class Bricks(pg.sprite.Sprite):
         if self.color != (0, 0, 0):
             collide = pg.sprite.spritecollide(self, self.ball, False)
             if collide:
-                print("collide")
                 self.color = (0, 0, 0)
                 self.image.fill(self.color)
         elif self.color == (0, 0, 0) and not self.destroyed:
@@ -139,6 +143,8 @@ def main():
 
     # "player" platform
     platform = Platform()
+    platforms = pg.sprite.Group()
+    platforms.add(platform)
 
     #Box2D world updater
     updater = Updater()
@@ -149,7 +155,7 @@ def main():
     top_wall = Walls(0, 8, 8.2, 0.1)
 
     #Ball that destroys the bricks
-    ball = Ball()
+    ball = Ball(platforms)
 
     balls = pg.sprite.Group()
     balls.add(ball)
