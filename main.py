@@ -2,6 +2,7 @@
 #NOTE: USE python to launch NOT python3 (i.e., python main.py NOT python3 main.py)
 
 #Noah Kuite
+import os
 import pygame as pg
 from engine import Engine
 from scene import Scene
@@ -31,15 +32,14 @@ class Platform(pg.sprite.Sprite):
         fixDef = b2FixtureDef(shape=shape, friction=1.0, restitution=1, density=.5)
         box = self.body.CreateFixture(fixDef)
         # 100 x 20
-        self.image = pg.Surface((2*w*b2w, (2*h*b2w) + 5))
-        self.image.fill((255, 0, 0))
+        self.image = pg.image.load(os.path.join('Assets', 'PNG', '07-Breakout-Tiles.png')).convert_alpha()
+        self.image = pg.transform.scale(self.image, (110, 35))
         self.rect = self.image.get_rect()
         self.rect.center = self.body.position.x * b2w, 820 - self.body.position.y * b2w
         #ignore gravity
         self.body.gravityScale = 0.0
 
     def draw(self, screen):
-        #pg.draw.rect(self.image, (255, 0, 0), self.rect)
         screen.blit(self.image, self.rect)
 
     def update(self):
@@ -64,11 +64,13 @@ class Ball(pg.sprite.Sprite):
         box = self.body.CreateFixture(fixDef)
         d=.2*b2w*2  # 40
         # 40 x 40 square
-        self.image = pg.Surface((d + 5,d+ 5), pg.SRCALPHA, 32)
-        self.image.convert_alpha()
+        # self.image = pg.Surface((d + 5,d+ 5), pg.SRCALPHA, 32)
+        # self.image.convert_alpha()
+        self.image = pg.image.load(os.path.join('Assets', 'PNG', '58-Breakout-Tiles.png')).convert_alpha()
+        self.image = pg.transform.scale(self.image, (45, 45))
         self.rect = self.image.get_rect()
         # 20
-        pg.draw.circle(self.image,(0, 0, 255) , self.rect.center, .2*b2w)
+        #pg.draw.circle(self.image,(0, 0, 255) , self.rect.center, .2*b2w)
         self.body.ApplyLinearImpulse( b2Vec2(0, 0.8), self.body.position, True)
 
     def draw(self, screen):
@@ -81,7 +83,7 @@ class Ball(pg.sprite.Sprite):
             Engine.running = False
         collide = pg.sprite.spritecollide(self, self.platforms, False)
         if collide:
-            self.body.ApplyLinearImpulse( b2Vec2(0, 0.2), self.body.position, True)
+            self.body.ApplyLinearImpulse( b2Vec2(0, 0.4), self.body.position, True)
 
 #Game object for walls
 class Walls():
@@ -98,18 +100,19 @@ class Walls():
 #game objects for bricks to break
 class Bricks(pg.sprite.Sprite):
     num_bricks = 0
-    def __init__(self, x, y, color, ball):
+    def __init__(self, x, y, img , ball):
         super(Bricks, self).__init__()
         Bricks.num_bricks = Bricks.num_bricks + 1
-        self.fireSound = pg.mixer.Sound("break.wav")
+        self.breakSound = pg.mixer.Sound("break.wav")
         self.ball = ball
-        self.color = color
+        self.color = (255, 255, 255)
+        self.asset = img
         self.destroyed = False
         w = 0.25 # width of the brick
         h = 0.1 # height of the brick
         self.body = world.CreateStaticBody(position=(x, y), shapes=b2PolygonShape(box=(w, h)))
-        self.image = pg.Surface(((2*w*b2w) + 10 , (2*h*b2w) + 15))
-        self.image.fill(self.color)
+        self.image = pg.image.load(os.path.join('Assets', 'PNG', self.asset)).convert_alpha()
+        self.image = pg.transform.scale(self.image, (60, 35))
         self.rect = self.image.get_rect()
         self.rect.center = self.body.position.x * b2w, 820 - self.body.position.y * b2w
 
@@ -128,7 +131,7 @@ class Bricks(pg.sprite.Sprite):
             world.DestroyBody(self.body)
             self.destroyed = True
             Bricks.num_bricks = Bricks.num_bricks - 1
-            self.fireSound.play()
+            self.breakSound.play()
 
 class Updater():
     def update(self):
@@ -156,7 +159,6 @@ def main():
 
     #Ball that destroys the bricks
     ball = Ball(platforms)
-
     balls = pg.sprite.Group()
     balls.add(ball)
 
@@ -172,22 +174,22 @@ def main():
     scene.updateables.append(updater)
     scene.updateables.append(ball)
 
-    #Colors for the bricks
-    colors = [
-        (255, 0, 0),
-        (0, 255, 0),
-        (0, 0, 255), 
-        (255, 0, 255),
-        (245, 111, 66),
-        (66, 245, 164)
+    # Images for the bricks
+    images = [
+        '24-Breakout-Tiles.png',
+        '27-Breakout-Tiles.png',
+        '28-Breakout-Tiles.png',
+        '23-Breakout-Tiles.png',
+        '25-Breakout-Tiles.png',
+        '30-Breakout-Tiles.png'
     ]
     #Add 6 rows of bricks to the scene
     color = 0
     i = 0
     j = 8
-    while(color < len(colors)):
+    while(color < len(images)):
         while(i < 8):
-            brick = Bricks(i, j, colors[color], balls)
+            brick = Bricks(i, j, images[color], balls)
             scene.drawables.append(brick)
             scene.updateables.append(brick)
             i = i + 0.55
