@@ -48,21 +48,21 @@ class Platform():
             if event.type == pg.KEYDOWN:
                 if event.key == pg.K_a:
                     #self.body.ApplyLinearImpulse( b2Vec2(-0.5, 0), self.body.position, True)
-                    self.body.linearVelocity = b2Vec2(-5, 0)
+                    self.body.linearVelocity = b2Vec2(-8, 0)
                 if event.key == pg.K_d:
-                    self.body.linearVelocity = b2Vec2(5, 0)
+                    self.body.linearVelocity = b2Vec2(8, 0)
 
 #Game object for ball
 class Ball(pg.sprite.Sprite):
     def __init__(self):
         super(Ball, self).__init__()
-        self.body = world.CreateDynamicBody(position=(4.6, 1.5))
+        self.body = world.CreateDynamicBody(position=(4, 1.5))
         shape=b2CircleShape(radius=.2)
         fixDef = b2FixtureDef(shape=shape, friction=0.3, restitution=1, density=.3)
         box = self.body.CreateFixture(fixDef)
         d=.2*b2w*2  # 40
         # 40 x 40 square
-        self.image = pg.Surface((d,d), pg.SRCALPHA, 32)
+        self.image = pg.Surface((d + 5,d+ 5), pg.SRCALPHA, 32)
         self.image.convert_alpha()
         self.rect = self.image.get_rect()
         # 20
@@ -92,9 +92,11 @@ class Walls():
 
 #game objects for bricks to break
 class Bricks(pg.sprite.Sprite):
-    #NOTE: class variable here for determining if all bricks are gone
+    num_bricks = 0
     def __init__(self, x, y, color, ball):
         super(Bricks, self).__init__()
+        Bricks.num_bricks = Bricks.num_bricks + 1
+        self.fireSound = pg.mixer.Sound("break.wav")
         self.ball = ball
         self.color = color
         self.destroyed = False
@@ -110,6 +112,8 @@ class Bricks(pg.sprite.Sprite):
         screen.blit(self.image, self.rect.center)
 
     def update(self):
+        if Bricks.num_bricks <= 0:
+            Engine.running = False
         if self.color != (0, 0, 0):
             collide = pg.sprite.spritecollide(self, self.ball, False)
             if collide:
@@ -119,6 +123,8 @@ class Bricks(pg.sprite.Sprite):
         elif self.color == (0, 0, 0) and not self.destroyed:
             world.DestroyBody(self.body)
             self.destroyed = True
+            Bricks.num_bricks = Bricks.num_bricks - 1
+            self.fireSound.play()
 
 class Updater():
     def update(self):
@@ -182,7 +188,6 @@ def main():
         j = j - 0.3
         i = 0
         color = color + 1
-    #scene.drawables.append(Bricks(4, 6, (255, 0, 0), balls))
 
     #add scene to the engine
     Engine.scene = scene
