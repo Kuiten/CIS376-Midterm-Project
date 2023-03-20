@@ -21,19 +21,24 @@ timeStep = 1.0 / 60
 #number of iterations
 vel_iters, pos_iters = 6, 2
 
-#Game object for platform moved by player
+"""
+The platform class is a drawable and updateable game object that is the platform at the bottom the player moves 
+to bounce the ball back towards the bricks
+"""
 class Platform(pg.sprite.Sprite):
     def __init__(self):
         super(Platform, self).__init__()
         w = 0.5 # width of the platform
         h = 0.1 # height of the platform
+        #Create box2d body -- Kinematic body so the ball doesn't push it off the screen
         self.body = world.CreateKinematicBody(position=(4, 0.5))
         shape = b2PolygonShape(box=(w, h))
         fixDef = b2FixtureDef(shape=shape, friction=1.0, restitution=1, density=.5)
         box = self.body.CreateFixture(fixDef)
-        # 100 x 20
+        # Load the image asset for the platform
         self.image = pg.image.load(os.path.join('Assets', 'PNG', '07-Breakout-Tiles.png')).convert_alpha()
-        self.image = pg.transform.scale(self.image, (110, 35))
+        #scale the image to the correct size(slightly larger than box2d body)
+        self.image = pg.transform.scale(self.image, ((2*w*b2w) + 10, (2*h*b2w) + 10))
         self.rect = self.image.get_rect()
         self.rect.center = self.body.position.x * b2w, 820 - self.body.position.y * b2w
         #ignore gravity
@@ -45,49 +50,57 @@ class Platform(pg.sprite.Sprite):
     def update(self):
         #Update center of rect for drawing purposes
         self.rect.center = self.body.position[0] * b2w, 820 - self.body.position[1] * b2w
+        #Events the consume
         for event in Engine.events:
             if event.type == pg.KEYDOWN:
+                #move the platform left if 'a' is pressed
                 if event.key == pg.K_a:
-                    #self.body.ApplyLinearImpulse( b2Vec2(-0.5, 0), self.body.position, True)
                     self.body.linearVelocity = b2Vec2(-8.5, 0)
+                #move the platform right if 'd' is pressed
                 if event.key == pg.K_d:
                     self.body.linearVelocity = b2Vec2(8.5, 0)
 
-#Game object for ball
+"""
+The ball class is a drawable and updateable game object the creates and controls the ball for breaking the bricks
+"""
 class Ball(pg.sprite.Sprite):
     def __init__(self, platforms):
         super(Ball, self).__init__()
+        #Platform objects used for collision detection between ball and platform
         self.platforms = platforms
+        #create body for the ball
         self.body = world.CreateDynamicBody(position=(4, 1.5))
         shape=b2CircleShape(radius=.2)
         fixDef = b2FixtureDef(shape=shape, friction=0.3, restitution=1, density=.3)
         box = self.body.CreateFixture(fixDef)
         d=.2*b2w*2  # 40
-        # 40 x 40 square
-        # self.image = pg.Surface((d + 5,d+ 5), pg.SRCALPHA, 32)
-        # self.image.convert_alpha()
+        #load ball image asset
         self.image = pg.image.load(os.path.join('Assets', 'PNG', '58-Breakout-Tiles.png')).convert_alpha()
-        self.image = pg.transform.scale(self.image, (45, 45))
+        #scale the ball image to be slightley larger than the body
+        self.image = pg.transform.scale(self.image, (d + 5, d + 5))
         self.rect = self.image.get_rect()
-        # 20
-        #pg.draw.circle(self.image,(0, 0, 255) , self.rect.center, .2*b2w)
         self.body.ApplyLinearImpulse( b2Vec2(0, 0.8), self.body.position, True)
 
     def draw(self, screen):
         screen.blit(self.image, self.rect.center)
 
     def update(self):
+        #Update balls position
         self.rect.center = self.body.position[0] * b2w, 820 - self.body.position[1] * b2w
         #If the ball falls off the map end the game
         if(800 - self.body.position[1] * b2w > 820):
             Engine.running = False
+        #if collision with platform occurs add some linear velocity
         collide = pg.sprite.spritecollide(self, self.platforms, False)
         if collide:
-            self.body.ApplyLinearImpulse( b2Vec2(0, 0.4), self.body.position, True)
+            self.body.ApplyLinearImpulse( b2Vec2(0, 0.2), self.body.position, True)
 
-#Game object for walls
+"""
+The walls class is a drawable game object used to create walls on the sides and top of the screen for the ball to bounce off of
+"""
 class Walls():
     def __init__(self, x, y, w, h):
+        #create the box2D body
         self.body = world.CreateStaticBody(position=(x, y), shapes=b2PolygonShape(box=(w, h)))
         self.image = pg.Surface((2*w*b2w, 2*h*b2w))
         self.image.fill((0, 0, 0))
@@ -97,22 +110,34 @@ class Walls():
     def draw(self, screen):
         screen.blit(self.image, self.rect)
 
-#game objects for bricks to break
+"""
+The bricks class is a drawable and updateable game object that creates a brick for the ball to break
+"""
 class Bricks(pg.sprite.Sprite):
+    #Class variable used for tracking when win condition should trigger
     num_bricks = 0
     def __init__(self, x, y, img , ball):
         super(Bricks, self).__init__()
+        #Update number of bricks
         Bricks.num_bricks = Bricks.num_bricks + 1
+        #load the break sound effect for when a brick is destroyed
         self.breakSound = pg.mixer.Sound("break.wav")
+        #The ball object, used to detect when a brick is hit
         self.ball = ball
+        #status color
         self.color = (255, 255, 255)
+        #name of image asset for the brick
         self.asset = img
+        #status of brick
         self.destroyed = False
         w = 0.25 # width of the brick
         h = 0.1 # height of the brick
+        #create the box2d body
         self.body = world.CreateStaticBody(position=(x, y), shapes=b2PolygonShape(box=(w, h)))
+        #load image asset
         self.image = pg.image.load(os.path.join('Assets', 'PNG', self.asset)).convert_alpha()
-        self.image = pg.transform.scale(self.image, (60, 35))
+        #Scale the image to slightly larger than box2d body
+        self.image = pg.transform.scale(self.image, ((2*w*b2w) + 10, (2*h*b2w) + 15))
         self.rect = self.image.get_rect()
         self.rect.center = self.body.position.x * b2w, 820 - self.body.position.y * b2w
 
@@ -120,19 +145,28 @@ class Bricks(pg.sprite.Sprite):
         screen.blit(self.image, self.rect.center)
 
     def update(self):
+        #if number of bricks is 0, end the game
         if Bricks.num_bricks <= 0:
             Engine.running = False
+        #if currently alive check for collision
         if self.color != (0, 0, 0):
             collide = pg.sprite.spritecollide(self, self.ball, False)
             if collide:
+                #if colliion occurred set the color to black and change the image to black
                 self.color = (0, 0, 0)
                 self.image.fill(self.color)
+        #if color is black and self.destroyed is false delete the box2d body
+        #This is done to delete the body after the ball has already bounced off the object
         elif self.color == (0, 0, 0) and not self.destroyed:
+            #destroy body
             world.DestroyBody(self.body)
+            #set status destroyed
             self.destroyed = True
-            Bricks.num_bricks = Bricks.num_bricks - 1
-            self.breakSound.play()
-
+            Bricks.num_bricks = Bricks.num_bricks - 1 # decrement number of bricks
+            self.breakSound.play() # play break sound
+"""
+The Updater class is an updateable game object to updates the world state of box2d
+"""
 class Updater():
     def update(self):
         world.Step(timeStep, vel_iters, pos_iters)
